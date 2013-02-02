@@ -1,0 +1,3 @@
+[submodule "superduck"]
+	path = superduck
+	url = git@github.com:Nek/SuperDuck.git
