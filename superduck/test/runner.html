@@ -1,0 +1,17 @@
+<html>
+  <head>
+    <title>Example Test Suite</title>
+    <link rel="stylesheet" href="../node_modules/nodeunit/dist/browser/nodeunit.css" type="text/css" />
+    <script src="../node_modules/nodeunit/dist/browser/nodeunit.js"></script>
+    <script src="superduck_test.js"></script>
+    <script src="../lib/superduck.js"></script>
+  </head>
+  <body>
+    <h1 id="nodeunit-header">Example Test Suite</h1>
+    <script>
+      nodeunit.run({
+        'superduck': superduck_test
+      });
+    </script>
+  </body>
+</html>
