@@ -14,6 +14,7 @@ describe("tweens", function() {
 
     var t_cmp = anm.__dev.t_cmp; // FIXME: test t_cmp separately
 
+    // FIXME: replace these calls with _matchers.time calls
     function t_before      (t0, t1) { return t_cmp(t0, t1) <  0; }
     function t_before_or_eq(t0, t1) { return t_cmp(t0, t1) <= 0; }
     function t_after       (t0, t1) { return t_cmp(t0, t1) >  0; }
@@ -344,13 +345,13 @@ describe("tweens", function() {
                         bs = { x: 0, y: 0,
                            sx: 1, sy: 1,
                            angle: 0, alpha: 1 };
-                    } },
+                    } }/* TODO: finish ,
                     { description: "changed base state",
                     prepare: function() {
                         bs = { x: 32, y: 17.5,
                            sx: 1.7, sy: 30,
                            angle: Math.PI / 5, alpha: 0.75 };
-                    } } ], function() {
+                    } }*/ ], function() {
 
           describe("the way tweens apply, by type;", function() {
 

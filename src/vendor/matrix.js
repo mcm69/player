@@ -129,4 +129,4 @@ Transform.prototype.inverted = function() {
   return clone;
 }
 
-if (exports) exports.Transform = Transform;
+if (typeof exports !== 'undefined') exports.Transform = Transform;

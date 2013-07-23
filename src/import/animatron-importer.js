@@ -77,6 +77,9 @@ AnimatronImporter.prototype.importElement = function(clip, source, in_band) {
         if (!inner.eid && !inner.layers) {
             // -> ( id, name?, url?, text?, stroke?, fill?, path?, round-rect? )
             this._collectStaticData(target, inner);
+            if (target.collectCustomData) {
+              target.collectCustomData(inner);
+            }
         } else {
             // FIXME: consider returning this element, but not adding it
             target.add(this.importElement(inner, source, target.xdata.gband));
@@ -128,8 +131,9 @@ AnimatronImporter.prototype.findElement = function(id, source) {
 // collect required data from source layer
 AnimatronImporter.prototype._collectDynamicData = function(to, clip, in_band) {
     if (!to.name && clip.name) to.name = clip.name;
+    if (clip.visible === false) to.disabled = true; // to.visible = false;
     var x = to.xdata;
-    x.lband = clip.band || [0, Infinity]; //FIMXE: remove, when it will be always set in project
+    x.lband = Convert.band(clip.band);
     x.gband = in_band ? Bands.wrap(in_band, x.lband)
                       : x.lband;
     x.reg = clip.reg || [0, 0];
@@ -147,11 +151,13 @@ AnimatronImporter.prototype._collectDynamicData = function(to, clip, in_band) {
 };
 AnimatronImporter.prototype._collectStaticData = function(to, src) {
     if (!to.name) to.name = src.name;
-    to.xdata.sheet = src.url ? new anm.Sheet(src.url) : null;
-    to.xdata.path = src.path ? Convert.path(src.path, src.fill, src.stroke)
+    // todo: make opposite check (if IS IMAGE or SHEET, etc)
+    var isAudio = src.id.substr(src.id.length - 2) === "0e";
+    to.xdata.sheet = src.url && !isAudio ? new anm.Sheet(src.url) : null;
+    to.xdata.path = src.path ? Convert.path(src.path, src.fill, src.stroke, src.shadow)
                              : null;
     to.xdata.text = src.text ? Convert.text(src.text, src.font,
-                                            src.fill, src.stroke)
+                                            src.fill, src.stroke, src.shadow)
                              : null;
 };
 
@@ -191,19 +197,30 @@ Convert.tweenData = function(type, tween) {
     }
     return tween.data;
 }
-Convert.path = function(pathStr, fill, stroke) {
+Convert.path = function(pathStr, fill, stroke, shadow) {
     // ()
     return new Path(pathStr,
                     Convert.fill(fill),
-                    Convert.stroke(stroke));
+                    Convert.stroke(stroke),
+                    Convert.shadow(shadow));
 }
 Convert.text = function(lines, font,
-                        fill, stroke) {
+                        fill, stroke, shadow) {
     // (lines, font, stroke, fill)
     return new Text(lines, font,
                     Convert.fill(fill),
-                    Convert.stroke(stroke));
+                    Convert.stroke(stroke),
+                    Convert.shadow(shadow));
 }
+Convert.shadow = function(src) {
+  if (!src || src.offsetX == undefined) return null;
+  var shadow = {};
+  shadow.color = src.paint.rgba || src.paint.color;
+  shadow.offsetX = src.offsetX;
+  shadow.offsetY = src.offsetY;
+  shadow.blurRadius = src.blur;
+  return shadow;
+};
 Convert.easing = function(from) {
     // (name, path?)
     if (!from) return null;
@@ -275,15 +292,21 @@ Convert.gradient = function(src) {
         bounds: src.bounds
     };
 }
+Convert.band = function(from) {
+    if (!from) return [ 0, Infinity ];
+    if (from.length == 2) return from;
+    if (from.length == 1) return [ from[0], Infinity ];
+    return [ 0, Infinity ];
+}
 Convert.mode = function(from) {
-    if (!from) return C.R_STAY;
+    if (!from) return C.R_ONCE;
     if (from === "once") return C.R_ONCE;
     if (from === "stay") return C.R_STAY;
     if (from === "loop") return C.R_LOOP;
     if (from === "bounce") return C.R_BOUNCE; // FIXME: last is not for sure
 }
 Convert.oldschool_mode = function(from) {
-    if (!from) return C.R_STAY;
+    if (!from) return C.R_ONCE;
     if (from === "STOP") return C.R_ONCE;
     if (from === "LOOP") return C.R_LOOP;
     if (from === "BOUNCE") return C.R_BOUNCE; // FIXME: last is not for sure

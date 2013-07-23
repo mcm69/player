@@ -56,7 +56,11 @@
     // Cross-platform injector
     var _wnd = (typeof window !== 'undefined') ? window : null;
     var _doc = (typeof document !== 'undefined') ? document : null;
-    if (typeof define === 'function' && define.amd) {
+    // TODO: var _factory = __anm_factory || { /*...*/ };
+    if (_wnd.__anm_force_window_scope) { // FIXME: Remove
+        _wnd[name] = _wnd[name] || {};
+        produce(_wnd, _doc)(_wnd[name]);
+    } else if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
         define(produce(_wnd, _doc));
     } else if (typeof module != 'undefined') {
@@ -473,6 +477,19 @@ Player.DEFAULT_CONFIGURATION = { 'debug': false,
                                            'duration': 0 }
                                };
 
+Player.__instance_listeners = [];
+
+Player.fireNewInstance = function(instance) {
+  for (var i = 0, il = Player.__instance_listeners.length;
+       i < il; i++) {
+    Player.__instance_listeners[i].call(instance);
+  }
+};
+
+Player.addNewInstanceListener = function(handler) {
+  Player.__instance_listeners.push(handler);
+};
+
 // ### Playing Control API
 /* ----------------------- */
 
@@ -519,6 +536,8 @@ Player.prototype.init = function(cvs, opts) {
     this._loadOpts(opts);
     this._postInit();
     /* TODO: if (this.canvas.hasAttribute('data-url')) */
+
+    Player.fireNewInstance(this);
     return this;
 }
 Player.prototype.load = function(arg1, arg2, arg3, arg4) {
@@ -1003,6 +1022,7 @@ Player.prototype._drawLoadingSplash = function(text) {
     this._drawSplash();
     var ctx = this.ctx;
     ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#006';
     ctx.font = '12px sans-serif';
     ctx.fillText(text || Strings.LOADING, 20, 25);
@@ -1013,8 +1033,9 @@ Player.prototype._drawErrorSplash = function(e) {
     this._drawSplash();
     var ctx = this.ctx;
     ctx.save();
-    ctx.fillStyle = '#600';
-    ctx.font = '16px sans-serif';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#006';
+    ctx.font = '14px sans-serif';
     ctx.fillText(Strings.ERROR +
                  (e ? ': ' + (e.message || (typeof Error))
                     : '') + '.', 20, 35);
@@ -1393,7 +1414,7 @@ Scene.prototype.render = function(ctx, time, zoom) {
 }
 Scene.prototype.handle__x = function(type, evt) {
     this.visitElems(function(elm) {
-        if (elm.visible) elm.fire(type, evt);
+        if (elm.shown) elm.fire(type, evt);
     });
     return true;
 }
@@ -1504,6 +1525,9 @@ C.AC_NAMES[C.C_DARKER] = 'darker';
 C.AC_NAMES[C.C_COPY] = 'copy';
 C.AC_NAMES[C.C_XOR] = 'xor';
 
+Element.DEFAULT_PVT = [ 0.5, 0.5 ];
+//Element.DEFAULT_REG = [ 0.5, 0.5 ];
+
 Element.TYPE_MAX_BIT = 16;
 Element.PRRT_MAX_BIT = 8; // used to calculate modifiers/painters id's:
     // they are: (type << TYPE_MAX_BIT) | (priot << PRRT_MAX_BIT) | i
@@ -1549,7 +1573,8 @@ function Element(draw, onframe) {
     this.children = [];
     this.parent = null;
     this.scene = null;
-    this.visible = false;
+    this.visible = true; // user flag, set by user
+    this.shown = false; // system flag, set by engine
     this.registered = false;
     this.disabled = false;
     this.rendering = false;
@@ -1564,6 +1589,7 @@ function Element(draw, onframe) {
     this.__painting = null; // current painters class, if painting
     this.__evtCache = [];
     this.__detachQueue = [];
+    this.__frameProcessors = [];
     this._initHandlers(); // TODO: make automatic
     var _me = this,
         default_on = this.on;
@@ -1607,19 +1633,33 @@ Element.prototype.transform = function(ctx) {
     ctx.globalAlpha *= as.alpha;
     s._matrix.apply(ctx);
     as._matrix = s._matrix;
+    // FIXME: do not store matrix in a state here,
+    // but return it
 }
 // > Element.render % (ctx: Context, gtime: Float)
 Element.prototype.render = function(ctx, gtime) {
     if (this.disabled) return;
     this.rendering = true;
+    // context is saved even before decision, if we draw or not, for safety:
+    // because context anyway may be changed with user functions,
+    // like modifiers who return false (and we do not want to restrict
+    // user to do that)
     ctx.save();
-    var wasDrawn = false;
+    var drawMe = false;
+
     // checks if any time jumps (including repeat
     // modes) were performed
     var ltime = this.ltime(gtime);
-    if (wasDrawn = (this.fits(ltime)
-                    && this.onframe(ltime)
-                    && this.prepare())) {
+    drawMe = this.__preRender(gtime, ltime, ctx);
+    if (drawMe) {
+        drawMe = this.fits(ltime)
+                 && this.onframe(ltime)
+                 && this.prepare()
+                 && this.visible;
+    }
+    if (drawMe) {
+        // update gtime for children, if it was changed by ltime()
+        gtime = this.gtime(ltime);
         if (!this.__mask) {
             // draw directly to context, if has no mask
             this.transform(ctx);
@@ -1673,13 +1713,13 @@ Element.prototype.render = function(ctx, gtime) {
                           dbl_scene_width, dbl_scene_height);
         }
     }
-    // immediately when drawn, element becomes visible,
+    // immediately when drawn, element becomes shown,
     // it is reasonable
-    this.visible = wasDrawn;
+    this.shown = drawMe;
     ctx.restore();
     this.__postRender();
     this.rendering = false;
-    if (wasDrawn) this.fire(C.X_DRAW,ctx);
+    if (drawMe) this.fire(C.X_DRAW,ctx);
 }
 // > Element.addModifier % (( configuration: Object,
 //                            modifier: Function(time: Float,
@@ -1749,6 +1789,7 @@ Element.prototype.removeModifier = function(modifier) {
     if (!modifier.__m_ids) throw new AnimErr(Errors.A.MODIFIER_NOT_ATTACHED);
     //if (this.__modifying) throw new AnimErr("Can't remove modifiers while modifying");
     var id = modifier.__m_ids[this.id];
+    delete modifier.__m_ids[this.id];
     if (!id) throw new AnimErr('Modifier wasn\'t applied to this element');
     var TB = Element.TYPE_MAX_BIT,
         PB = Element.PRRT_MAX_BIT;
@@ -1769,6 +1810,7 @@ Element.prototype.removePainter = function(painter) {
     if (!painter.__p_ids) throw new AnimErr('Painter wasn\'t applied to anything');
     //if (this.__painting) throw new AnimErr("Can't remove painters while painting");
     var id = painter.__p_ids[this.id];
+    delete painter.__p_ids[this.id];
     var TB = Element.TYPE_MAX_BIT,
         PB = Element.PRRT_MAX_BIT;
     var type = id >> TB,
@@ -1927,7 +1969,7 @@ Element.prototype.m_on = function(type, handler) {
       function(t) { /* FIXME: handlers must have priority? */
         if (this.__evt_st & type) {
           var evts = this.__evts[type];
-          for (var i = 0; i < evts.length; i++) {
+          for (var i = 0, el = evts.length; i < el; i++) {
               if (handler.call(this,evts[i],t) === false) return false;
           }
         }
@@ -2076,6 +2118,8 @@ Element.prototype.global = function(pt) {
     return [ pt[0] + off[0], pt[1] + off[1] ];
 } */
 Element.prototype.dimen = function() {
+    // TODO: allow to set _dimen?
+    if (this._dimen) return this._dimen;
     var x = this.xdata;
     var subj = x.path || x.text || x.sheet;
     if (subj) return subj.dimen();
@@ -2217,8 +2261,9 @@ Element.prototype.deepClone = function() {
     if (src_x.path) trg_x.path = src_x.path.clone();
     if (src_x.text) trg_x.text = src_x.text.clone();
     if (src_x.sheet) trg_x.sheet = src_x.sheet.clone();
+    trg_x.pos = [].concat(src_x.pos);
     trg_x.pvt = [].concat(src_x.pvt);
-    trg_x.reg = [].concat(src_x.reg);
+    //trg_x.reg = [].concat(src_x.reg);
     trg_x.lband = [].concat(src_x.lband);
     trg_x.gband = [].concat(src_x.gband);
     trg_x.keys = obj_clone(src_x.keys);
@@ -2541,6 +2586,13 @@ Element.prototype.__loadEvts = function(to) {
 Element.prototype.__clearEvts = function(from) {
     from.__evt_st = 0; from.__evts = {};
 }
+Element.prototype.__preRender = function(gtime, ltime, ctx) {
+    var cr = this.__frameProcessors;
+    for (var i = 0, cl = cr.length; i < cl; i++) {
+        if (cr[i].call(this, gtime, ltime, ctx) === false) return false;
+    }
+    return true;
+}
 Element.prototype.__postRender = function() {
     // clear detach-queue
     this.__performDetach();
@@ -2582,8 +2634,8 @@ Element.createState = function(owner) {
 };
 // geometric data of the element
 Element.createXData = function(owner) {
-    return { 'pvt': [0, 0],      // pivot
-             'reg': [0, 0],      // registration point
+    return { 'pvt': Element.DEFAULT_PVT,      // pivot
+             /*'reg': Element.DEFAULT_REG,*/  // registration point
              'path': null,     // Path instanse, if it is a shape
              'text': null,     // Text data, if it is a text (`path` holds stroke and fill)
              'sheet': null,    // Sheet instance, if it is an image or a sprite sheet
@@ -2609,13 +2661,11 @@ Element.__addSysPainters = function(elm) {
     elm.__paint({ type: Element.SYS_PNT }, Render.p_drawXData);
 }
 Element.__addDebugRender = function(elm) {
-    elm.__paint({ type: Element.SYS_PNT }, Render.p_drawPvt);
-    elm.__paint({ type: Element.SYS_PNT }, Render.p_drawName);
-    /* elm.__paint({ type: Element.DEBUG_PNT,
+    elm.__paint({ type: Element.DEBUG_PNT }, Render.p_drawPivot);
+    elm.__paint({ type: Element.DEBUG_PNT }, Render.p_drawName);
+    elm.__paint({ type: Element.DEBUG_PNT,
                      priority: 1 },
-                   Render.p_drawMPath); */
-
-    elm.on(C.X_DRAW, Render.h_drawMPath); // to call out of the 2D context changes
+                   Render.p_drawMPath);
 }
 Element.__addTweenModifier = function(elm, conf) {
     //if (!conf.type) throw new AnimErr('Tween type is not defined');
@@ -2696,7 +2746,7 @@ function provideEvents(subj, events) {
         return function() {
             var _hdls = {};
             this.handlers = _hdls;
-            for (var ei = 0; ei < evts.length; ei++) {
+            for (var ei = 0, el = evts.length; ei < el; ei++) {
                 _hdls[evts[ei]] = [];
             }
         };
@@ -2717,7 +2767,7 @@ function provideEvents(subj, events) {
         var name = C.__enmap[event];
         if (this['handle_'+name]) this['handle_'+name](evtobj);
         var _hdls = this.handlers[event];
-        for (var hi = 0; hi < _hdls.length; hi++) {
+        for (var hi = 0, hl = _hdls.length; hi < hl; hi++) {
             _hdls[hi].call(this, evtobj);
         }
     };
@@ -2745,7 +2795,7 @@ function provideEvents(subj, events) {
     /* FIXME: call fire/e_-funcs only from inside of their providers, */
     /* TODO: wrap them with event objects */
     var _event;
-    for (var ei = 0; ei < events.length; ei++) {
+    for (var ei = 0, el = events.length; ei < el; ei++) {
         _event = events[ei];
         subj.prototype['e_'+_event] = (function(event) {
             return function(evtobj) {
@@ -2940,16 +2990,17 @@ Render.loop = __r_loop;
 Render.at = __r_at;
 Render._drawFPS = __r_fps;
 
-Render.p_drawPvt = function(ctx, pvt) {
+Render.p_drawPivot = function(ctx, pvt) {
     if (!(pvt = pvt || this.pvt)) return;
-    var dimen = this.$.dimen();
-    if (!dimen) return;
+    var dimen = this.$.dimen() || [ 0, 0 ];
+    var stokeStyle = dimen ? '#600' : '#f00';
     ctx.save();
+    // WHY it is required??
     ctx.translate(pvt[0] * dimen[0],
                   pvt[1] * dimen[1]);
     ctx.beginPath();
     ctx.lineWidth = 1.0;
-    ctx.strokeStyle = '#600';
+    ctx.strokeStyle = stokeStyle;
     ctx.moveTo(0, -10);
     ctx.lineTo(0, 0);
     ctx.moveTo(3, 0);
@@ -2983,16 +3034,19 @@ Render.p_usePivot = function(ctx) {
     var dimen = this.$.dimen(),
         pvt = this.pvt;
     if (!dimen) return;
+    if ((pvt[0] === 0) && (pvt[1] === 0)) return;
     ctx.translate(-(pvt[0] * dimen[0]),
                   -(pvt[1] * dimen[1]));
 }
 
-Render.h_drawMPath = function(ctx, mPath) {
-    if (!(mPath = mPath || this.state._mpath)) return;
+Render.p_drawMPath = function(ctx, mPath) {
+    if (!(mPath = mPath || this.$.state._mpath)) return;
     ctx.save();
-    var s = this.state;
-    Render.p_usePivot.call(this.xdata, ctx);
+    //var s = this.$.astate;
+    //Render.p_usePivot.call(this.xdata, ctx);
     mPath.cstroke('#600', 2.0);
+    //ctx.translate(-s.x, -s.y);
+    //ctx.rotate(-s.angle);
     ctx.beginPath();
     mPath.apply(ctx);
     ctx.closePath();
@@ -3249,10 +3303,11 @@ C.PC_SQUARE = 'square';
 C.PC_BEVEL = 'bevel';
 
 // > Path % (str: String)
-function Path(str, fill, stroke) {
+function Path(str, fill, stroke, shadow) {
     this.str = str;
     this.fill = fill;
     this.stroke = stroke;
+    this.shadow = shadow;
     this.segs = [];
     this.parse(str);
 }
@@ -3278,7 +3333,7 @@ Path.BASE_STROKE = { 'width': 1.0,
 // > Path.visit % (visitor: Function[Segment, Any], data: Any)
 Path.prototype.visit = function(visitor, data) {
     var segments = this.segs;
-    for (var si = 0; si < segments.length; si++) {
+    for (var si = 0, sl = segments.length; si < sl; si++) {
         visitor(segments[si], data);
     }
 }
@@ -3302,6 +3357,7 @@ Path.prototype.apply = function(ctx) {
     var p = this;
     Path.applyF(ctx, p.fill || Path.DEFAULT_FILL,
                      p.stroke || Path.DEFAULT_STROKE,
+                     p.shadow,
              function() { p.visit(Path._applyVisitor, ctx); });
 
     /* ctx.save();
@@ -3402,12 +3458,13 @@ Path.prototype.bounds = function() {
     var minX = this.segs[0].pts[0], maxX = this.segs[0].pts[0],
         minY = this.segs[0].pts[1], maxY = this.segs[0].pts[1];
     this.visit(function(segment) {
-        var pts = segment.pts;
-        for (var pi = 0; pi < pts.length; pi+=2) {
+        var pts = segment.pts,
+            pnum = pts.length;
+        for (var pi = 0; pi < pnum; pi+=2) {
             minX = Math.min(minX, pts[pi]);
             maxX = Math.max(maxX, pts[pi]);
         }
-        for (var pi = 1; pi < pts.length; pi+=2) {
+        for (var pi = 1; pi < pnum; pi+=2) {
             minY = Math.min(minY, pts[pi]);
             maxY = Math.max(maxY, pts[pi]);
         }
@@ -3430,8 +3487,9 @@ Path.prototype.rect = function() {
 /* TODO: rename to `modify`? */
 Path.prototype.vpoints = function(func) {
     this.visit(function(segment) {
-        var pts = segment.pts;
-        for (var pi = 0; pi < pts.length; pi+=2) {
+        var pts = segment.pts,
+            pnum = pts.length;
+        for (var pi = 0; pi < pnum; pi+=2) {
             var res = func(pts[pi], pts[pi+1]);
             if (res) {
                 pts[pi] = res[0];
@@ -3496,11 +3554,12 @@ Path.prototype.clone = function() {
 Path.prototype.dispose = function() { }
 
 
-Path.applyF = function(ctx, fill, stroke, func) {
+Path.applyF = function(ctx, fill, stroke, shadow, func) {
     ctx.save();
     ctx.beginPath();
     Brush.fill(ctx, fill);
     Brush.stroke(ctx, stroke);
+    Brush.shadow(ctx, shadow);
     func();
 
     if (Brush._hasVal(fill)) ctx.fill();
@@ -3805,11 +3864,12 @@ CSeg.prototype._calc_params = function(start) {
 // -----------------------------------------------------------------------------
 
 function Text(lines, font,
-              fill, stroke) {
+              fill, stroke, shadow) {
     this.lines = lines;
     this.font = font || Text.DEFAULT_FONT;
     this.fill = fill || Text.DEFAULT_FILL;
     this.stroke = stroke || Text.DEFAULT_STROKE;
+    this.shadow = shadow;
     this._bnds = null;
 }
 
@@ -3830,7 +3890,9 @@ Text.prototype.apply = function(ctx, point, baseline) {
     ctx.font = this.font;
     ctx.textBaseline = baseline || Text.BASELINE_RULE;
     ctx.translate(point[0]/* + (dimen[0] / 2)*/, point[1]);
+
     if (Brush._hasVal(this.fill)) {
+        Brush.shadow(ctx, this.shadow);
         Brush.fill(ctx, this.fill);
         ctx.save();
         this.visitLines(function(line) {
@@ -3840,6 +3902,7 @@ Text.prototype.apply = function(ctx, point, baseline) {
         ctx.restore();
     }
     if (Brush._hasVal(this.stroke)) {
+        Brush.shadow(ctx, this.shadow);
         Brush.stroke(ctx, this.stroke);
         ctx.save();
         this.visitLines(function(line) {
@@ -3889,7 +3952,7 @@ Text.prototype.visitLines = function(func, data) {
 }
 Text.prototype.clone = function() {
     var c = new Text(this.lines, this.font,
-                     this.fill, this.stroke);
+                     this.fill, this.stroke, this.shadow);
     if (this.lines && Array.isArray(this.lines)) {
         c.lines = [].concat(this.lines);
     }
@@ -3969,6 +4032,13 @@ Brush.stroke = function(ctx, stroke) {
 Brush.fill = function(ctx, fill) {
     if (!fill) return;
     ctx.fillStyle = Brush.create(ctx, fill);
+}
+Brush.shadow = function(ctx, shadow) {
+    if (!shadow) return;
+    ctx.shadowColor = shadow.color;
+    ctx.shadowBlur = shadow.blurRadius;
+    ctx.shadowOffsetX = shadow.offsetX;
+    ctx.shadowOffsetY = shadow.offsetY;
 }
 Brush._hasVal = function(fsval) {
     return (fsval && (fsval.color || fsval.lgrad || fsval.rgrad));
