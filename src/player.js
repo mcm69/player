@@ -57,7 +57,7 @@
     var _wnd = (typeof window !== 'undefined') ? window : null;
     var _doc = (typeof document !== 'undefined') ? document : null;
     // TODO: var _factory = __anm_factory || { /*...*/ };
-    if (_wnd.__anm_force_window_scope) { // FIXME: Remove
+    if (_wnd && _wnd.__anm_force_window_scope) { // FIXME: Remove
         _wnd[name] = _wnd[name] || {};
         produce(_wnd, _doc)(_wnd[name]);
     } else if (typeof define === 'function' && define.amd) {

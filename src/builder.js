@@ -9,7 +9,7 @@
 
 (function(root, name, produce) {
     // Cross-platform injector
-    if (window && window.__anm_force_window_scope) { // FIXME: Remove
+    if ((typeof window !== 'undefined') && window.__anm_force_window_scope) { // FIXME: Remove
         // Browser globals
         root[name] = produce(root.anm);
     } else if (typeof define === 'function' && define.amd) {
