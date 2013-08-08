@@ -2713,7 +2713,7 @@ Element._mergeStates = function(s1, s2) {
 }
 Element._getMatrixOf = function(s, m) {
     var _t = (m ? (m.reset(), m)
-                : new Transform());
+                : ENGINE.createTransform());
     _t.translate(s.x, s.y);
     _t.rotate(s.angle);
     _t.scale(s.sx, s.sy);
