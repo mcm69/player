@@ -2338,7 +2338,8 @@ Element.prototype.setBand = function(band) {
 // > Element.fits % (ltime: Float) -> Boolean
 Element.prototype.fits = function(ltime) {
     if (ltime < 0) return false;
-    return __t_cmp(ltime, this.xdata.lband[1] - this.xdata.lband[0]) <= 0;
+    return (__t_cmp(ltime, this.xdata.lband[0]) >= 0) &&
+           (__t_cmp(ltime, this.xdata.lband[1]) < 0);
 }
 // > Element.gtime % (ltime: Float) -> Float
 Element.prototype.gtime = function(ltime) {
@@ -4479,7 +4480,7 @@ Text.prototype.apply = function(ctx, point, baseline) {
         ctx.restore();
     }
     if (Brush._hasVal(this.stroke)) {
-        Brush.shadow(ctx, this.shadow);
+        //Brush.shadow(ctx, this.shadow); // no shadows for strokes
         Brush.stroke(ctx, this.stroke);
         ctx.save();
         this.visitLines(function(line) {
