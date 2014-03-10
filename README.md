@@ -1,4 +1,4 @@
-### JS Player for Animatron project (v1.1, unstable)
+### JS Player for Animatron project (v1.1.0, unstable)
 
 [Currently all tests are disabled and not time-bombed in refactoring purposes (some will be turned back on after refactoring iterations, some not), so the badge below just provides nice ecologically green color for us to feel safe]
 

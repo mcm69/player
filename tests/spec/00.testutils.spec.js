@@ -145,8 +145,8 @@ describe("utils", function() {
 
     // test mocks ?
 
-    xdescribe("canvas mock", function() {
-
+    describe("engines and creating player", function() {
+        var player = anm.createPlayer('mock-canvas');
     });
 
 });
