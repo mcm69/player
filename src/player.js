@@ -5347,38 +5347,67 @@ Controls._drawPlay = function(ctx, theme, w, h, focused) {
 
     Controls._drawGuyInCorner(ctx, theme, w, h);
 }
-Controls.__prepareLoadingPulse = function() {
-    if (Controls.__loadingP) return Controls.__loadingP;
+Controls.__prepareLoadingPulse = function(speed, dt) {
 
-    var path = [],
-        w = 1, h = 1;
+    if (Controls.__loadingP) {
 
-    path.push([ 0, h / 2 ]);
+      var path = Controls.__loadingP;
+      if (!dt) return path;
 
-    var start = w / 8,
-        end = w - (w / 8),
-        max_step_x = (w / 8),
-        max_step_y = (h / 4);
+      var len = path.length,
+          tmp_x = new Array(len - 4);
 
-    path.push([ start, h / 2 ]);
+      for (var i = 2; i < (len - 2); i++) {
+        tmp_x[i - 2] = path[i][0] + (speed * dt);
+      }
 
-    var x = (Math.random() * max_step_x),
-        prev_x = 0;
-    for (; x < (end - start); x += (Math.random() * max_step_x)) {
-      path.push([ start + prev_x + ((x - prev_x) / 2),
-                  (h / 2) + (((Math.random() * 2) - 1) * max_step_y) ]);
-      path.push([ start + x, h / 2 ]);
-      prev_x = x;
+      var tmp_len = tmp_x.length,
+          pos = tmp_len - 1,
+          shift = 0;
+      while (tmp_x[pos--] >= path[len - 2][0]) { shift++; }
+
+      // FIXME: it's wrong, should put last 'shift' elms of tmp_x
+      //        to the start of path
+      for (var i = 2; i < (len - 2); i++) {
+        path[i][0] = ((i - 2 + shift) < tmp_len) ?
+                     ? tmp_x[i - 2 + shift]
+                     : tmp_x[tmp_len - shift + (i - 2)] - path[1][0];
+      }
+
+    } else {
+
+      var path = [],
+          w = 1, h = 1;
+
+      path.push([ 0, h / 2 ]);
+
+      var start = w / 8,
+          end = w - (w / 8),
+          max_step_x = (w / 8),
+          max_step_y = (h / 4);
+
+      path.push([ start, h / 2 ]);
+
+      var x = (Math.random() * max_step_x),
+          prev_x = 0;
+      for (; x < (end - start); x += (Math.random() * max_step_x)) {
+        path.push([ start + prev_x + ((x - prev_x) / 2),
+                    (h / 2) + (((Math.random() * 2) - 1) * max_step_y) ]);
+        path.push([ start + x, h / 2 ]);
+        prev_x = x;
+      }
+      if (x < (end - start)) {
+        path.push([ start + x + ((end - x) / 2),
+                    (h / 2) + (((Math.random() * 2) - 1) * max_step_y) ]);
+        path.push([ start + end, h / 2 ]);
+      }
+
+      path.push([ w, h / 2 ]);
+
+      Controls.__loadingP = path;
+
     }
-    if (x < (end - start)) {
-      path.push([ start + x + ((end - x) / 2),
-                  (h / 2) + (((Math.random() * 2) - 1) * max_step_y) ]);
-      path.push([ start + end, h / 2 ]);
-    }
 
-    path.push([ w, h / 2 ]);
-
-    Controls.__loadingP = path;
     return Controls.__loadingP;
 }
 Controls._drawLoadingEffect = function(ctx, theme, w, h) {
@@ -5394,7 +5423,10 @@ Controls._drawLoadingEffect = function(ctx, theme, w, h) {
 
     ctx.strokeStyle = Math.random('rgb(' + Math.random() + ', 0, 0)'); // #f00
 
-    var path = Controls.__prepareLoadingPulse();
+    var now = Date.now();
+    var path = Controls.__prepareLoadingPulse(1 / 2000,
+                  Controls.__lastT ? (now - Controls.__lastT) : 0);
+    Controls.__lastT = now;
 
     /* var now = Date.now();
     if (!Controls.__lastT) Controls.__lastT = now;
@@ -5404,6 +5436,7 @@ Controls._drawLoadingEffect = function(ctx, theme, w, h) {
       Controls.__lastT = now;
     } */
 
+    ctx.beginPath();
     ctx.moveTo(path[0][0] * w, path[0][1] * h);
 
     for (var i = 1, il = path.length; i < il; i++) {
