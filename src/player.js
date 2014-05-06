@@ -5347,6 +5347,40 @@ Controls._drawPlay = function(ctx, theme, w, h, focused) {
 
     Controls._drawGuyInCorner(ctx, theme, w, h);
 }
+Controls.__prepareLoadingPulse = function() {
+    if (Controls.__loadingP) return Controls.__loadingP;
+
+    var path = [],
+        w = 1, h = 1;
+
+    path.push([ 0, h / 2 ]);
+
+    var start = w / 8,
+        end = w - (w / 8),
+        max_step_x = (w / 8),
+        max_step_y = (h / 4);
+
+    path.push([ start, h / 2 ]);
+
+    var x = (Math.random() * max_step_x),
+        prev_x = 0;
+    for (; x < (end - start); x += (Math.random() * max_step_x)) {
+      path.push([ start + prev_x + ((x - prev_x) / 2),
+                  (h / 2) + (((Math.random() * 2) - 1) * max_step_y) ]);
+      path.push([ start + x, h / 2 ]);
+      prev_x = x;
+    }
+    if (x < (end - start)) {
+      path.push([ start + x + ((end - x) / 2),
+                  (h / 2) + (((Math.random() * 2) - 1) * max_step_y) ]);
+      path.push([ start + end, h / 2 ]);
+    }
+
+    path.push([ w, h / 2 ]);
+
+    Controls.__loadingP = path;
+    return Controls.__loadingP;
+}
 Controls._drawLoadingEffect = function(ctx, theme, w, h) {
     //var theme = theme || Controls.THEME;
 
@@ -5358,35 +5392,31 @@ Controls._drawLoadingEffect = function(ctx, theme, w, h) {
 
     var two_pi = 2 * Math.PI;
 
-    ctx.translate(0, h / 2);
+    ctx.strokeStyle = Math.random('rgb(' + Math.random() + ', 0, 0)'); // #f00
 
-    ctx.fillStyle = '#f00';
-    ctx.arc(0, 0, 4, 0, two_pi);
-    ctx.fill();
+    var path = Controls.__prepareLoadingPulse();
 
-    ctx.strokeStyle = '#f00';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    var start = w / 8,
-        end = w - (w / 8),
-        max_step_x = (w / 8),
-        max_step_y = (h / 4);
-    ctx.lineTo(w / 8, 0);
-    var x = (Math.random() * max_step_x),
-        prev_x = 0;
-    for (; x < (end - start); x += (Math.random() * max_step_x)) {
-      ctx.lineTo(start + prev_x + ((x - prev_x) / 2), ((Math.random() * 2) - 1) * max_step_y);
-      ctx.lineTo(start + x, 0);
-      prev_x = x;
+    /* var now = Date.now();
+    if (!Controls.__lastT) Controls.__lastT = now;
+    if ((now - Controls.__lastT) > 100) {
+      var rand_idx = 2 + (Math.floor(Math.random() * (path.length - 2) / 2) * 2);
+      path[rand_idx][1] = ((Math.random() * 2) - 1);
+      Controls.__lastT = now;
+    } */
+
+    ctx.moveTo(path[0][0] * w, path[0][1] * h);
+
+    for (var i = 1, il = path.length; i < il; i++) {
+      ctx.lineTo(path[i][0] * w, path[i][1] * h);
     }
-    if (x < (end - start)) {
-      ctx.lineTo(start + ((end - x) / 2), ((Math.random() * 2) - 1) * max_step_y);
-      ctx.lineTo(start + end, 0);
-    }
-    ctx.lineTo(w, 0);
+
     ctx.stroke();
 
-    ctx.arc(w, 0, 4, 0, two_pi);
+    ctx.fillStyle = '#f00';
+    ctx.arc(0, h / 2, 4, 0, two_pi);
+    ctx.fill();
+
+    ctx.arc(w, h / 2, 4, 0, two_pi);
     ctx.fill();
 
     ctx.restore();
