@@ -1188,18 +1188,14 @@ Player.prototype._drawLoadingSplash = function(text) {
     ctx.fillText(text || Strings.LOADING, 20, 25);
     ctx.restore();
 }
-Player.prototype._drawLoadingCircles = function() {
+Player.prototype._drawLoadingEffect = function() {
     var theme = Controls.THEME;
-    Controls._runLoadingAnimation(this.ctx, function(ctx) {
-        var w = ctx.canvas.clientWidth,
-            h = ctx.canvas.clientHeight;
-        // FIXME: render only changed circles
-        ctx.clearRect(0, 0, w, h);
+    var ctx = this.ctx,
+        w = ctx.canvas.clientWidth,
+        h = ctx.canvas.clientHeight;
+    Controls._runLoadingAnimation(ctx, w, h, function() {
         //Controls._drawBack(ctx, theme, w, h);
-        Controls._drawLoadingCircles(ctx, w, h,
-                                     (((Date.now() / 100) % 60) / 60),
-                                     .5 /*theme.radius.outer*/,
-                                     theme.colors.stroke, theme.colors.text);
+        Controls._drawLoadingEffect(ctx, null, w, h);
     });
 }
 Player.prototype._stopDrawingLoadingCircles = function() {
@@ -1229,14 +1225,14 @@ Player.prototype._runLoadingAnimation = function(what) {
         this._drawLoadingSplash(what);
         this.controls._scheduleLoading();
     } else {
-        this._drawLoadingCircles();
+        this._drawLoadingEffect();
     }
 }
 Player.prototype._stopLoadingAnimation = function() {
     if (this.controls) {
         this.controls._stopLoading();
     } else {
-        this._stopDrawingLoadingCircles();
+        this._stopDrawingLoadingEffect();
     }
 }
 Player.prototype.toString = function() {
@@ -5038,11 +5034,8 @@ Controls.prototype.render = function(time) {
         //Controls._drawBack(ctx, theme, _w, _h);
         Controls._drawNoScene(ctx, theme, _w, _h, this.focused);
     } else if ((_s === C.LOADING) || (_s === C.RES_LOADING)) { // TODO: show resource loading progress
-        Controls._runLoadingAnimation(ctx, function(ctx) {
-            ctx.clearRect(0, 0, _w, _h);
-            //Controls._drawBack(ctx, theme, _w, _h);
-            Controls._drawLoading(ctx, theme, _w, _h,
-                                  (((Date.now() / 100) % 60) / 60), '');
+        Controls._runLoadingAnimation(ctx, _w, _h, function() {
+            Controls._drawLoadingEffect(ctx, theme, _w, _h);
                                   // isRemoteLoading ? player._loadSrc '...' : '');
         });
     } else if (_s === C.ERROR) {
@@ -5354,11 +5347,53 @@ Controls._drawPlay = function(ctx, theme, w, h, focused) {
 
     Controls._drawGuyInCorner(ctx, theme, w, h);
 }
-Controls._drawLoading = function(ctx, theme, w, h, hilite_pos, src) {
-    Controls._drawLoadingCircles(ctx, w, h, hilite_pos, theme.radius.outer,
-                                            theme.colors.stroke, theme.colors.text);
+Controls._drawLoadingEffect = function(ctx, theme, w, h) {
+    //var theme = theme || Controls.THEME;
 
-    if (src) {
+    // TODO: use player._loadSrc?
+    // TODO: use themes smartly, so each player instance
+    //       may have it's own controls scheme
+
+    ctx.save();
+
+    var two_pi = 2 * Math.PI;
+
+    ctx.translate(0, h / 2);
+
+    ctx.fillStyle = '#f00';
+    ctx.arc(0, 0, 4, 0, two_pi);
+    ctx.fill();
+
+    ctx.strokeStyle = '#f00';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    var start = w / 8,
+        end = w - (w / 8),
+        max_step_x = (w / 8),
+        max_step_y = (h / 4);
+    ctx.lineTo(w / 8, 0);
+    var x = (Math.random() * max_step_x),
+        prev_x = 0;
+    for (; x < (end - start); x += (Math.random() * max_step_x)) {
+      ctx.lineTo(start + prev_x + ((x - prev_x) / 2), ((Math.random() * 2) - 1) * max_step_y);
+      ctx.lineTo(start + x, 0);
+      prev_x = x;
+    }
+    if (x < (end - start)) {
+      ctx.lineTo(start + ((end - x) / 2), ((Math.random() * 2) - 1) * max_step_y);
+      ctx.lineTo(start + end, 0);
+    }
+    ctx.lineTo(w, 0);
+    ctx.stroke();
+
+    ctx.arc(w, 0, 4, 0, two_pi);
+    ctx.fill();
+
+    ctx.restore();
+
+    /*Controls._drawLoadingEffect(ctx, w, h, theme);*/
+
+    /* if (src) {
         Controls._drawText(ctx, theme,
                      w / 2, ((h / 2) * (1 + theme.radius.status)),
                      theme.font.statussize,
@@ -5375,9 +5410,9 @@ Controls._drawLoading = function(ctx, theme, w, h, hilite_pos, src) {
                    theme.font.statussize,
                    Strings.COPYRIGHT);
 
-    Controls._drawGuyInCenter(ctx, theme, w, h);
+    Controls._drawGuyInCenter(ctx, theme, w, h); */
 }
-Controls._drawLoadingCircles = function(ctx, w, h, hilite_pos, radius, normal_color, hilite_color) {
+/*Controls._drawLoadingEffect = function(ctx, w, h, hilite_pos, radius, normal_color, hilite_color) {
     ctx.save();
 
     var cx = w / 2,
@@ -5397,7 +5432,7 @@ Controls._drawLoadingCircles = function(ctx, w, h, hilite_pos, radius, normal_co
         ctx.rotate(two_pi / circles);
     }
     ctx.restore();
-}
+}*/
 Controls._drawNoScene = function(ctx, theme, w, h, focused) {
     ctx.save();
 
@@ -5526,7 +5561,7 @@ Controls._drawGuyInCenter = function(ctx, theme, w, h, colors, pos, scale) {
 
     // FIXME: place COPYRIGHT text directly under the guy in drawAnimatronGuy function
 }
-Controls._runLoadingAnimation = function(ctx, paint) {
+Controls._runLoadingAnimation = function(ctx, width, height, paint) {
     // FIXME: unlike player's _runLoadingAnimation, this function is more private/internal
     //        and Contols._scheduleLoading() should be used to start all the drawing process
     if (ctx.__anm_loadingReq) return;
@@ -5538,8 +5573,10 @@ Controls._runLoadingAnimation = function(ctx, paint) {
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         if (ratio != 1) ctx.scale(ratio, ratio);
+        // FIXME: may be it flickers because of ratio not used
+        ctx.clearRect(0, 0, width, height);
         // FIXME: redraw only the changed circles
-        paint(ctx);
+        paint(ctx, width, height);
         ctx.restore();
         return __nextFrame(loading_loop);
     }
@@ -5548,10 +5585,10 @@ Controls._runLoadingAnimation = function(ctx, paint) {
 Controls._stopLoadingAnimation = function(ctx, paint) {
     // FIXME: unlike player's _stopLoadingAnimation, this function is more private/internal
     //        and Contols._stopLoading() should be used to stop the drawing process
-    if (!ctx.__anm_loadingReq) return;
-    ctx.__anm_supressLoading = true;
-    __stopAnim(ctx.__anm_loadingReq);
-    ctx.__anm_loadingReq = null;
+    // if (!ctx.__anm_loadingReq) return;
+    // ctx.__anm_supressLoading = true;
+    // __stopAnim(ctx.__anm_loadingReq);
+    // ctx.__anm_loadingReq = null;
 }
 
 // Info Block
