@@ -5368,10 +5368,11 @@ Controls.__prepareLoadingPulse = function(speed, dt) {
 
       // FIXME: it's wrong, should put last 'shift' elms of tmp_x
       //        to the start of path
-      for (var i = 2; i < (len - 2); i++) {
-        path[i][0] = ((i - 2 + shift) < tmp_len) ?
-                     ? tmp_x[i - 2 + shift]
-                     : tmp_x[tmp_len - shift + (i - 2)] - path[1][0];
+      for (var i = 2; i < (shift + 2); i++) {
+        path[i][0] = tmp_x[tmp_len - shift - i] - path[1][0];
+      }
+      for (var i = (shift + 2); i < (len - 2); i++) {
+        path[i][0] = tmp_x[i - 2 + shift];
       }
 
     } else {
