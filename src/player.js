@@ -415,6 +415,7 @@ function Player() {
     this.__canvasPrepared = false;
     this.__instanceNum = ++Player.__instances;
     this.__makeSafe(Player._SAFE_METHODS);
+    this.__thumbnail = null;
 }
 Player.__instances = 0;
 
@@ -848,6 +849,7 @@ Player.prototype._prepare = function(cvs) {
 
     this.__canvasPrepared = true;
 }
+// join the passed options object with the player options stored inside
 Player.prototype._addOpts = function(opts) {
     // TODO: use addOpts to add any additional options to current ones
     // will move all options directly in the player object
@@ -881,6 +883,7 @@ Player.prototype._addOpts = function(opts) {
     this.muteErrors = __defined(opts.muteErrors)
                         ? opts.muteErrors : this.muteErrors;
 }
+// check if player options stored inside player object do match to the player mode
 Player.prototype._checkOpts = function() {
     if (!this.canvas) return;
 
@@ -929,6 +932,8 @@ Player.prototype._checkOpts = function() {
 
     this.__appliedMode = this.mode;
 }
+// update player mode after the fact it was changed
+// (FIXME: why not pass a new one here then, and not to make the mode private?)
 Player.prototype._updateMode = function() {
     if (!this.canvas || !this.mode) return;
     if (!this.__appliedMode == this.mode) return;
@@ -942,7 +947,7 @@ Player.prototype._updateMode = function() {
 
     this._checkOpts();
 }
-// initial state of the player, called from constuctor
+// post-init preparations, called from constuctor
 Player.prototype._postInit = function() {
     this.stop();
     Text.__measuring_f = $engine.createTextMeasurer();
@@ -951,6 +956,8 @@ Player.prototype._postInit = function() {
     if (mayBeUrl) this.load(mayBeUrl/*,
                             this.canvas.getAttribute(Player.IMPORTER_ATTR)*/);
 }
+
+// change canvas position and size
 Player.prototype.changeRect = function(rect) {
     this.x = rect.x; this.y = rect.y;
     this.width = rect.width; this.height = rect.height;
@@ -963,6 +970,7 @@ Player.prototype.changeRect = function(rect) {
     return (cur_w != rect.width) || (cur_w != rect.height) ||
            (cur.x != rect.x) || (cur.y != rect.y);
 } */
+// force player to redraw
 Player.prototype.forceRedraw = function() {
     if (this.controls) this.controls.forceNextRedraw();
     switch (this.state.happens) {
@@ -1131,6 +1139,9 @@ Player.prototype.subscribeEvents = function(canvas) {
                     })(this)
     });
 }
+Player.prototype.setThumbnail = function(src) {
+    this.__thumbnail = src;
+}
 Player.prototype._drawEmpty = function() {
     var ctx = this.ctx,
         w = this.width,
@@ -1297,11 +1308,11 @@ Player.prototype._resize = function(width, height) {
     if (this.controls) this.controls.update(cvs);
     this.forceRedraw();
     return new_size;
-};
+}
 Player.prototype._restyle = function(bg) {
     $engine.setCanvasBackground(this.canvas, bg);
     this.forceRedraw();
-};
+}
 // FIXME: methods below may be removed, but they are required for tests
 Player.prototype._enableControls = function() {
     if (!this.controls) this.controls = new Controls(this);

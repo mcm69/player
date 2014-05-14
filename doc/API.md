@@ -509,6 +509,109 @@ You may build a [`Scene`](#scene) instance manually, with no usage of `Builder`,
 
     createPlayer('my_canvas').load([first, second]).play();
 
+Constants
+---------
+
+Some of the functions described below (such as tweens, easings, repeat modes and events managers in [Builder](#builder) and a lot of methods of [Element](#element)) use some string value determining the type of action to perform as a parameter. It is recommended to use constants for these cases, because string values may change with time, but constants will not. All constants are defined in `anm.C` object, so it will also be useful for you to you use `C` [alias](#aliases) for `anm.C`, then any constant name will look for you like `C.<constant-type>_<constant-name>`. The places where constants may be used are also marked with the same pattern. The below is the list of the possible constants grouped by type.
+
+1. Player state `C.*` /read-only, `player.state`/
+    * `C.NOTHING` — nothing loaded into player
+    * `C.STOPPED` — playing stopped
+    * `C.PLAYING` — playing
+    * `C.PAUSED` — playing paused
+    * `C.RES_LOADING` — player loads resources for a scene
+    * `C.LOADING` — player loads the scene
+    * `C.ERROR` — error happened
+2. [Player mode](#mode) `C.M_*` /`player.mode`/
+    * Grouped
+        * `C.M_PREVIEW` - Preview Mode, controls and interaction disabled
+        * `C.M_DYNAMIC` - Dynamic Mode, controls disabled and user interaction enabled
+        * `C.M_VIDEO` - Video Mode, controls enabled, but interaction disabled
+    * Separate
+        * `C.M_HANDLE_EVENTS` | `C.M_DO_NOT_HANDLE_EVENTS` — Handling events (interaction) enabled/disabled
+        * `C.M_CONTROLS_ENABLED` | `C.M_CONTROLS_DISABLED` — Controls enabled/disabled
+        * `C.M_INFO_ENABLED` | `C.M_INFO_DISABLED` — Info block enabled/disabled
+3. [Events](#events) `C.S_*`, `C.X_*`, `C.XT_*`
+    * Player
+        * `C.S_PLAY` — Playing started
+        * `C.S_PAUSE` — Playing paused
+        * `C.S_STOP` — Playing stopped
+        * `C.S_COMPLETE` — Completed playing a scene
+        * `C.S_LOAD` — Scene loaded
+        * `C.S_RES_LOAD` — Player started to load remote resources for a scene
+        * `C.S_REPEAT` — Auto-repeat was called
+        * `C.S_ERROR` — Error happened
+    * Element
+        * Mouse `C.X_M*`, `C.XT_MOUSE`
+            * `C.X_MCLICK` — Mouse Click event
+            * `C.X_MDCLICK` — Mouse Double-Click event
+            * `C.X_MMOVE` — Mouse Move event
+            * `C.X_MUP` — Mouse Up event
+            * `C.X_MDOWN` — Mouse Down event
+            * `C.X_MOVER` — Mouse Over event
+            * `C.X_MOUT` — Mouse Out event
+        * Keyboard `C.X_K*`, `C.XT_KEYBOARD`
+            * `C.X_KPRESS` — Key Press event
+            * `C.X_KUP` — Key Up event
+            * `C.X_KDOWN` — Key Down event
+        * `C.X_DRAW` — Draw event
+4. [Element Repeat mode](#repeat-modes) `C.R_*`
+    * `C.R_ONCE` — play once
+    * `C.R_STAY` — play once and stay
+    * `C.R_REPEAT` — repeat playing
+    * `C.R_BOUNCE` — play forward-backward and repeat
+5. [Tweens](#tweens) `C.T_*`
+    * `C.T_TRANSLATE` — Translate Tween
+    * `C.T_SCALE` — Scale Tween
+    * `C.T_ROTATE` — Rotate Tween
+    * `C.T_ROT_TO_PATH` — Rotate-To-Path Tween
+    * `C.T_ALPHA` — Alpha Tween
+6. [Easings](#tween-easings) `C.E_*`
+    * Curve-based Easings
+        * `C.E_DEF` — Default easing
+        * `C.E_IN` | `C.E_OUT` | `C.E_INOUT` — Standard In, Out and In/Out easings
+        * `C.E_SIN` | `C.E_SOUT` | `C.E_SINOUT` — Sine In, Out and In/Out easings
+        * `C.E_QIN` | `C.E_QOUT` | `C.E_QINOUT` — Quad In, Out and In/Out easings
+        * `C.E_CIN` | `C.E_COUT` | `C.E_CINOUT` — Cubic In, Out and In/Out easings
+        * `C.E_QTIN` | `C.E_QTOUT` | `C.E_QTINOUT` — Quart In, Out and In/Out easings
+        * `C.E_QIIN` | `C.E_QIOUT` | `C.E_QIINOUT` — Quint In, Out and In/Out easings
+        * `C.E_EIN` | `C.E_EOUT` | `C.E_EINOUT` — Exponent In, Out and In/Out easings
+        * `C.E_CRIN` | `C.E_CROUT` | `C.E_CRINOUT` — Circular In, Out and In/Out easings
+        * `C.E_BIN` | `C.E_BOUT` | `C.E_BINOUT` — Back In, Out and In/Out easings
+    * Easings that require data
+        * `C.E_PATH` — Path-based easing
+        * `C.E_CSEG` — Curve Segment-based easing
+        * `C.E_FUNC` — Function-based easing
+7. [Paths](#path) `C.P_*`
+    * Segment type
+        * `C.P_MOVE` - Move-Segment
+        * `C.P_LINETO` - LineTo-Segment
+        * `C.P_CURVETO` - CurveTo-Segment
+8. [Stroke](#fill--stroke) `C.PC_*`
+    * Cap/Join type
+        * `C.PC_ROUND`
+        * `C.PC_BUTT`
+        * `C.PC_MITER`
+        * `C.PC_BEVEL`
+        * `C.PC_SQUARE`
+9. [Composition](#elements-interactions)
+    * `C.C_SRC_OVER` - Source over
+    * `C.C_SRC_ATOP` - Source atop
+    * `C.C_SRC_IN` - Source in
+    * `C.C_SRC_OUT` - Source out
+    * `C.C_DST_OVER` - Destination over
+    * `C.C_DST_ATOP` - Destination atop
+    * `C.C_DST_IN` - Destination in
+    * `C.C_DST_OUT` - Destination out
+    * `C.C_LIGHTER` - Lighter
+    * `C.C_DARKER` - Darker
+    * `C.C_COPY` - Copy
+    * `C.C_XOR` - XOR
+
+<!-- TODO: Player states in details, w/images -->
+
+<!-- TODO: Player modes in details -->
+
 Builder
 -------
 
@@ -885,105 +988,6 @@ This way you may wrap three elements and show them one by one:
 Time values may be fractional, so the band `[1.5, 3.7]` is totally correct.
 
 Among with that, setting a band affects the [Repeat Mode](#repeat-modes) of the shape animation within the parent's time space.
-
-### Constants
-
-<!-- TODO: move to the top ? -->
-
-Some of the functions described below (such as tweens, easings, repeat modes and events managers in [Builder](#builder) and a lot of methods of [Element](#element)) use some string value determining the type of action to perform as a parameter. It is recommended to use constants for these cases, because string values may change with time, but constants will not. All constants are defined in `anm.C` object, so it will also be useful for you to you use `C` [alias](#aliases) for `anm.C`, then any constant name will look for you like `C.<constant-type>_<constant-name>`. The places where constants may be used are also marked with the same pattern. The below is the list of the possible constants grouped by type.
-
-1. Player state `C.*` /read-only, `player.state`/
-    * `C.NOTHING` — nothing loaded into player
-    * `C.STOPPED` — playing stopped
-    * `C.PLAYING` — playing
-    * `C.PAUSED` — playing paused
-    * `C.LOADING` — player loads the scene
-    * `C.ERROR` — error happened
-2. [Player mode](#mode) `C.M_*` /`player.mode`/
-    * Grouped
-        * `C.M_PREVIEW` - Preview Mode, controls and interaction disabled
-        * `C.M_DYNAMIC` - Dynamic Mode, controls disabled and user interaction enabled
-        * `C.M_VIDEO` - Video Mode, controls enabled, but interaction disabled
-    * Separate
-        * `C.M_HANDLE_EVENTS` | `C.M_DO_NOT_HANDLE_EVENTS` — Handling events (interaction) enabled/disabled
-        * `C.M_CONTROLS_ENABLED` | `C.M_CONTROLS_DISABLED` — Controls enabled/disabled
-        * `C.M_INFO_ENABLED` | `C.M_INFO_DISABLED` — Info block enabled/disabled
-3. [Events](#events) `C.S_*`, `C.X_*`, `C.XT_*`
-    * Player
-        * `C.S_PLAY` — Playing started
-        * `C.S_PAUSE` — Playing paused
-        * `C.S_STOP` — Playing stopped
-        * `C.S_COMPLETE` — Completed playing a scene
-        * `C.S_LOAD` — Scene loaded
-        * `C.S_RES_LOAD` — Player started to load remote resources for a scene
-        * `C.S_REPEAT` — Auto-repeat was called
-        * `C.S_ERROR` — Error happened
-    * Element
-        * Mouse `C.X_M*`, `C.XT_MOUSE`
-            * `C.X_MCLICK` — Mouse Click event
-            * `C.X_MDCLICK` — Mouse Double-Click event
-            * `C.X_MMOVE` — Mouse Move event
-            * `C.X_MUP` — Mouse Up event
-            * `C.X_MDOWN` — Mouse Down event
-            * `C.X_MOVER` — Mouse Over event
-            * `C.X_MOUT` — Mouse Out event
-        * Keyboard `C.X_K*`, `C.XT_KEYBOARD`
-            * `C.X_KPRESS` — Key Press event
-            * `C.X_KUP` — Key Up event
-            * `C.X_KDOWN` — Key Down event
-        * `C.X_DRAW` — Draw event
-4. [Element Repeat mode](#repeat-modes) `C.R_*`
-    * `C.R_ONCE` — play once
-    * `C.R_STAY` — play once and stay
-    * `C.R_REPEAT` — repeat playing
-    * `C.R_BOUNCE` — play forward-backward and repeat
-5. [Tweens](#tweens) `C.T_*`
-    * `C.T_TRANSLATE` — Translate Tween
-    * `C.T_SCALE` — Scale Tween
-    * `C.T_ROTATE` — Rotate Tween
-    * `C.T_ROT_TO_PATH` — Rotate-To-Path Tween
-    * `C.T_ALPHA` — Alpha Tween
-6. [Easings](#tween-easings) `C.E_*`
-    * Curve-based Easings
-        * `C.E_DEF` — Default easing
-        * `C.E_IN` | `C.E_OUT` | `C.E_INOUT` — Standard In, Out and In/Out easings
-        * `C.E_SIN` | `C.E_SOUT` | `C.E_SINOUT` — Sine In, Out and In/Out easings
-        * `C.E_QIN` | `C.E_QOUT` | `C.E_QINOUT` — Quad In, Out and In/Out easings
-        * `C.E_CIN` | `C.E_COUT` | `C.E_CINOUT` — Cubic In, Out and In/Out easings
-        * `C.E_QTIN` | `C.E_QTOUT` | `C.E_QTINOUT` — Quart In, Out and In/Out easings
-        * `C.E_QIIN` | `C.E_QIOUT` | `C.E_QIINOUT` — Quint In, Out and In/Out easings
-        * `C.E_EIN` | `C.E_EOUT` | `C.E_EINOUT` — Exponent In, Out and In/Out easings
-        * `C.E_CRIN` | `C.E_CROUT` | `C.E_CRINOUT` — Circular In, Out and In/Out easings
-        * `C.E_BIN` | `C.E_BOUT` | `C.E_BINOUT` — Back In, Out and In/Out easings
-    * Easings that require data
-        * `C.E_PATH` — Path-based easing
-        * `C.E_CSEG` — Curve Segment-based easing
-        * `C.E_FUNC` — Function-based easing
-7. [Paths](#path) `C.P_*`
-    * Segment type
-        * `C.P_MOVE` - Move-Segment
-        * `C.P_LINETO` - LineTo-Segment
-        * `C.P_CURVETO` - CurveTo-Segment
-8. [Stroke](#fill--stroke) `C.PC_*`
-    * Cap/Join type
-        * `C.PC_ROUND`
-        * `C.PC_BUTT`
-        * `C.PC_MITER`
-        * `C.PC_BEVEL`
-        * `C.PC_SQUARE`
-9. [Composition](#elements-interactions)
-    * `C.C_SRC_OVER` - Source over
-    * `C.C_SRC_ATOP` - Source atop
-    * `C.C_SRC_IN` - Source in
-    * `C.C_SRC_OUT` - Source out
-    * `C.C_DST_OVER` - Destination over
-    * `C.C_DST_ATOP` - Destination atop
-    * `C.C_DST_IN` - Destination in
-    * `C.C_DST_OUT` - Destination out
-    * `C.C_LIGHTER` - Lighter
-    * `C.C_DARKER` - Darker
-    * `C.C_COPY` - Copy
-    * `C.C_XOR` - XOR
 
 ### Tweens
 
